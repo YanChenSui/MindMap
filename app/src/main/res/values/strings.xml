@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">心境地图</string>
+    <string name="notification_channel_tracking">心境地图定位采集</string>
+    <string name="notification_tracking_title">心境地图正在采集</string>
+    <string name="notification_tracking_text">正在记录轨迹、位置和传感器数据</string>
+    <string name="stop_trip">停止</string>
+    <string name="permission_required">需要定位、相机和录音权限才能完成采集演示</string>
+    <string name="file_provider_authority">com.example.mindmap.fileprovider</string>
+    <string name="video_ready">准备录制</string>
+    <string name="video_start_recording">开始录制</string>
+</resources>

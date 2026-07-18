@@ -1,0 +1,64 @@
+package com.example.mindmap.data.local;
+
+import android.content.Context;
+
+import androidx.room.Database;
+import androidx.room.migration.Migration;
+import androidx.room.Room;
+import androidx.room.RoomDatabase;
+import androidx.sqlite.db.SupportSQLiteDatabase;
+
+import com.example.mindmap.data.local.dao.AnnotationDao;
+import com.example.mindmap.data.local.dao.RosPredictionDao;
+import com.example.mindmap.data.local.dao.TrackPointDao;
+import com.example.mindmap.data.local.dao.TripDao;
+import com.example.mindmap.data.local.entity.AnnotationEntity;
+import com.example.mindmap.data.local.entity.RosPredictionEntity;
+import com.example.mindmap.data.local.entity.TrackPointEntity;
+import com.example.mindmap.data.local.entity.TripEntity;
+
+/**
+ * Room 数据库入口。所有写入由 Repository 的后台线程执行，禁止主线程数据库访问。
+ */
+@Database(entities = {TripEntity.class, TrackPointEntity.class, AnnotationEntity.class, RosPredictionEntity.class}, version = 3, exportSchema = true)
+public abstract class AppDatabase extends RoomDatabase {
+    private static volatile AppDatabase instance;
+    private static final Migration MIGRATION_1_2 = new Migration(1, 2) {
+        @Override
+        public void migrate(SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE annotations ADD COLUMN visualPreferenceScore INTEGER NOT NULL DEFAULT 3");
+            database.execSQL("ALTER TABLE annotations ADD COLUMN thoughtClarityScore INTEGER NOT NULL DEFAULT 3");
+            database.execSQL("ALTER TABLE annotations ADD COLUMN worryForgetScore INTEGER NOT NULL DEFAULT 3");
+            database.execSQL("ALTER TABLE annotations ADD COLUMN restoredRelaxedScore INTEGER NOT NULL DEFAULT 3");
+            database.execSQL("ALTER TABLE annotations ADD COLUMN rosCalmScore INTEGER NOT NULL DEFAULT 3");
+            database.execSQL("ALTER TABLE annotations ADD COLUMN interestScore INTEGER NOT NULL DEFAULT 3");
+            database.execSQL("ALTER TABLE annotations ADD COLUMN focusedAlertScore INTEGER NOT NULL DEFAULT 3");
+            database.execSQL("ALTER TABLE annotations ADD COLUMN rosAverageScore REAL NOT NULL DEFAULT 3.0");
+        }
+    };
+    private static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+        @Override
+        public void migrate(SupportSQLiteDatabase database) {
+            database.execSQL("CREATE TABLE IF NOT EXISTS `ros_predictions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `annotationId` INTEGER NOT NULL, `transcript` TEXT, `visualPreferenceScore` INTEGER NOT NULL, `thoughtClarityScore` INTEGER NOT NULL, `worryForgetScore` INTEGER NOT NULL, `restoredRelaxedScore` INTEGER NOT NULL, `rosCalmScore` INTEGER NOT NULL, `interestScore` INTEGER NOT NULL, `focusedAlertScore` INTEGER NOT NULL, `keywordsJson` TEXT, `reason` TEXT, `modelName` TEXT, `modelVersion` TEXT, `promptVersion` TEXT, `status` TEXT, `errorMessage` TEXT, `createdAt` INTEGER NOT NULL, FOREIGN KEY(`annotationId`) REFERENCES `annotations`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_ros_predictions_annotationId` ON `ros_predictions` (`annotationId`)");
+        }
+    };
+
+    public abstract TripDao tripDao();
+    public abstract TrackPointDao trackPointDao();
+    public abstract AnnotationDao annotationDao();
+    public abstract RosPredictionDao rosPredictionDao();
+
+    public static AppDatabase getInstance(Context context) {
+        if (instance == null) {
+            synchronized (AppDatabase.class) {
+                if (instance == null) {
+                    instance = Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "mood_map.db")
+                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                            .build();
+                }
+            }
+        }
+        return instance;
+    }
+}
