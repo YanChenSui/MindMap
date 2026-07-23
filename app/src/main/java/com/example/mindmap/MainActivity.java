@@ -19,12 +19,15 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.example.mindmap.auth.LoginActivity;
+import com.example.mindmap.auth.LoginSession;
 import com.example.mindmap.service.LocationTrackingService;
 import com.example.mindmap.ui.activetrip.ActiveTripFragment;
 import com.example.mindmap.ui.home.HomeFragment;
 import com.example.mindmap.ui.tripdetail.TripDetailFragment;
 import com.example.mindmap.ui.tripdetail.TripMapFragment;
 import com.example.mindmap.ui.viewmodel.MoodMapViewModel;
+import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
@@ -40,8 +43,13 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.Navi
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (!LoginSession.isLoggedIn(this)) {
+            openLoginScreen();
+            return;
+        }
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+        configureAppBar();
         viewModel = new ViewModelProvider(this).get(MoodMapViewModel.class);
         viewModel.getMessage().observe(this, message -> {
             if (message != null) {
@@ -52,6 +60,38 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.Navi
             openHome();
         }
         requestCorePermissionsIfNeeded();
+    }
+
+    private void configureAppBar() {
+        MaterialToolbar toolbar = findViewById(R.id.main_toolbar);
+        toolbar.setSubtitle(getString(R.string.logged_in_as, LoginSession.username(this)));
+        toolbar.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == R.id.action_logout) {
+                showLogoutConfirmation();
+                return true;
+            }
+            return false;
+        });
+    }
+
+    private void showLogoutConfirmation() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.logout_title)
+                .setMessage(R.string.logout_message)
+                .setPositiveButton(R.string.logout_confirm, (dialog, which) -> {
+                    stopTrackingService();
+                    LoginSession.logout(this);
+                    openLoginScreen();
+                })
+                .setNegativeButton(R.string.logout_cancel, null)
+                .show();
+    }
+
+    private void openLoginScreen() {
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 
     public MoodMapViewModel getSharedViewModel() {
