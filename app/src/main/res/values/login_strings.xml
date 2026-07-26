@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="login_logo_description">心境地图应用图标</string>
+    <string name="login_title">心境地图</string>
+    <string name="login_subtitle">记录每一次行走，也看见沿途的心情</string>
+    <string name="login_welcome">欢迎回来</string>
+    <string name="login_prompt">登录后继续查看你的行程与心境记录</string>
+    <string name="login_username_hint">账号</string>
+    <string name="login_password_hint">密码</string>
+    <string name="login_remember">保持登录状态</string>
+    <string name="login_action">登录</string>
+    <string name="login_username_error">请输入不超过 50 个字符的账号</string>
+    <string name="login_password_error">密码至少需要 %1$d 位</string>
+    <string name="login_local_notice">当前为本地演示登录，不会保存或上传密码</string>
+    <string name="logout_action">退出登录</string>
+    <string name="logout_title">退出登录？</string>
+    <string name="logout_message">退出后需要重新输入账号和密码才能进入。</string>
+    <string name="logout_confirm">退出</string>
+    <string name="logout_cancel">取消</string>
+    <string name="logged_in_as">当前账号：%1$s</string>
+</resources>

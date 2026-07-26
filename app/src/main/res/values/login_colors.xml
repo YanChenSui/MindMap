@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="login_title">#173A26</color>
+    <color name="login_body">#294B36</color>
+    <color name="login_muted">#64756A</color>
+    <color name="login_card_stroke">#D9E9DE</color>
+</resources>
