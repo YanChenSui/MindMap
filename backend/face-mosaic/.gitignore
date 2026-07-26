@@ -1,0 +1,26 @@
+.runtime/
+.venv/
+__pycache__/
+*.pyc
+
+# Clone the upstream runtime during setup instead of vendoring it here.
+yolov9/
+
+# Models are deployment artifacts and exceed normal GitHub file limits.
+*.onnx
+*.pt
+*.pth
+*.torchscript
+
+# User videos and generated results must never be committed.
+*.avi
+*.m4v
+*.mkv
+*.mov
+*.mp4
+*.mpeg
+*.mpg
+*.wmv
+outputs/
+runs/
+uploads/
