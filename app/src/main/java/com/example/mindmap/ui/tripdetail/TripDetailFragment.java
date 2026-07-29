@@ -18,6 +18,7 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -47,6 +48,7 @@ import com.example.mindmap.ui.UiFactory;
 import com.example.mindmap.ui.tripdetail.section.RosAnnotationSection;
 import com.example.mindmap.ui.viewmodel.MoodMapViewModel;
 import com.example.mindmap.util.AmapCoordinateUtils;
+import com.example.mindmap.util.AppConstants;
 import com.example.mindmap.util.MapMarkerIconUtils;
 import com.example.mindmap.util.TimeFormatUtils;
 import com.example.mindmap.util.TrackMapUtils;
@@ -416,6 +418,13 @@ public class TripDetailFragment extends Fragment {
             body.addView(thumbnail);
         }
         body.addView(UiFactory.mutedText(requireContext(), "视频地址：" + displayMediaUri(annotation.videoUri)));
+        body.addView(UiFactory.mutedText(requireContext(), "原视频备份：" + displayMediaUri(annotation.originalVideoUri)));
+        body.addView(UiFactory.mutedText(requireContext(), "打码视频：" + displayMediaUri(annotation.blurredVideoUri)));
+        body.addView(UiFactory.mutedText(requireContext(), "打码状态：" + safe(annotation.videoMosaicStatus)));
+        if (AppConstants.MOSAIC_STATUS_PROCESSING.equals(annotation.videoMosaicStatus)) {
+            body.addView(createMosaicProgressBar());
+            body.addView(UiFactory.mutedText(requireContext(), "正在处理视频，请保持应用打开"));
+        }
         body.addView(UiFactory.mutedText(requireContext(), "缩略图：" + displayMediaUri(annotation.videoThumbnailUri)));
         body.addView(UiFactory.mutedText(requireContext(), "媒体时长：" + TimeFormatUtils.duration(annotation.durationMillis)));
         body.addView(UiFactory.mutedText(requireContext(), "拍摄角度：Pitch " + annotation.cameraPitch
@@ -428,6 +437,10 @@ public class TripDetailFragment extends Fragment {
             MaterialButton playVideo = UiFactory.secondaryButton(requireContext(), "播放视频");
             playVideo.setOnClickListener(v -> openMedia(annotation.videoUri, "video/*"));
             buttons.addView(playVideo, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            MaterialButton mosaicVideo = UiFactory.secondaryButton(requireContext(), "高斯模糊打码");
+            mosaicVideo.setEnabled(!AppConstants.MOSAIC_STATUS_PROCESSING.equals(annotation.videoMosaicStatus));
+            mosaicVideo.setOnClickListener(v -> confirmMosaicVideo(annotation));
+            buttons.addView(mosaicVideo, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         }
         if (annotation.audioUri != null && !annotation.audioUri.isEmpty()) {
             MaterialButton playAudio = UiFactory.secondaryButton(requireContext(), "播放音频");
@@ -449,6 +462,18 @@ public class TripDetailFragment extends Fragment {
             }
         }
         return matches;
+    }
+
+    private ProgressBar createMosaicProgressBar() {
+        ProgressBar progressBar = new ProgressBar(requireContext(), null, android.R.attr.progressBarStyleHorizontal);
+        progressBar.setIndeterminate(true);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, UiFactory.dp(requireContext(), 8), 0, UiFactory.dp(requireContext(), 4));
+        progressBar.setLayoutParams(params);
+        return progressBar;
     }
 
     @Nullable
@@ -772,6 +797,15 @@ public class TripDetailFragment extends Fragment {
         } catch (Throwable throwable) {
             Snackbar.make(requireView(), "无法打开媒体文件", Snackbar.LENGTH_LONG).show();
         }
+    }
+
+    private void confirmMosaicVideo(AnnotationEntity annotation) {
+        new AlertDialog.Builder(requireContext())
+                .setTitle("视频人脸打码")
+                .setMessage("将使用 YOLOv9-T 检测 person，并对人体框顶部区域做高斯模糊。完成后会用打码视频替换当前视频路径，并保留原视频路径。")
+                .setPositiveButton("开始打码", (dialog, which) -> viewModel.mosaicAnnotationVideo(annotation.id))
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     private void playAudio(String uri) {

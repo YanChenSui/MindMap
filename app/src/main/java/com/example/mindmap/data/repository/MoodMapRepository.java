@@ -10,6 +10,9 @@ import com.example.mindmap.data.local.entity.AnnotationEntity;
 import com.example.mindmap.data.local.entity.RosPredictionEntity;
 import com.example.mindmap.data.local.entity.TrackPointEntity;
 import com.example.mindmap.data.local.entity.TripEntity;
+import com.example.mindmap.profile.UserProfile;
+import com.example.mindmap.profile.UserProfileSession;
+import com.example.mindmap.service.mosaic.VideoMosaicProcessor;
 import com.example.mindmap.util.AppConstants;
 import com.example.mindmap.util.DistanceUtils;
 
@@ -67,6 +70,11 @@ public class MoodMapRepository {
                 }
                 long now = System.currentTimeMillis();
                 TripEntity trip = new TripEntity(name, destination, recordMode, now, AppConstants.TRIP_STATUS_ACTIVE, now);
+                UserProfile profile = UserProfileSession.currentProfile(appContext);
+                trip.accountName = profile.accountName;
+                trip.gender = profile.gender;
+                trip.ageGroup = profile.ageGroup;
+                trip.educationLevel = profile.educationLevel;
                 long id = database.tripDao().insert(trip);
                 callback.accept(id);
             } catch (Throwable throwable) {
@@ -131,6 +139,48 @@ public class MoodMapRepository {
                 callback.accept(id);
             } catch (Throwable throwable) {
                 Log.e(TAG, "保存 ROS 模型预测失败", throwable);
+                errorCallback.accept(throwable);
+            }
+        });
+    }
+
+    public void mosaicAnnotationVideo(long annotationId,
+                                      Consumer<Integer> progressCallback,
+                                      Consumer<AnnotationEntity> callback,
+                                      Consumer<Throwable> errorCallback) {
+        ioExecutor.execute(() -> {
+            AnnotationEntity annotation = null;
+            try {
+                annotation = database.annotationDao().getByIdSync(annotationId);
+                if (annotation == null) {
+                    throw new IllegalArgumentException("Annotation not found: " + annotationId);
+                }
+                if (annotation.videoUri == null || annotation.videoUri.isEmpty()) {
+                    throw new IllegalArgumentException("Annotation has no video");
+                }
+                annotation.videoMosaicStatus = AppConstants.MOSAIC_STATUS_PROCESSING;
+                annotation.videoMosaicError = "";
+                database.annotationDao().update(annotation);
+
+                VideoMosaicProcessor processor = new VideoMosaicProcessor(appContext);
+                File output = processor.process(annotation.videoUri, getMediaDir("mosaic_videos"), progressCallback::accept);
+                String originalUri = annotation.originalVideoUri == null || annotation.originalVideoUri.isEmpty()
+                        ? annotation.videoUri
+                        : annotation.originalVideoUri;
+                annotation.originalVideoUri = originalUri;
+                annotation.blurredVideoUri = output.toURI().toString();
+                annotation.videoUri = annotation.blurredVideoUri;
+                annotation.videoMosaicStatus = AppConstants.MOSAIC_STATUS_SUCCESS;
+                annotation.videoMosaicError = "";
+                database.annotationDao().update(annotation);
+                callback.accept(annotation);
+            } catch (Throwable throwable) {
+                Log.e(TAG, "视频打码失败", throwable);
+                if (annotation != null) {
+                    annotation.videoMosaicStatus = AppConstants.MOSAIC_STATUS_FAILED;
+                    annotation.videoMosaicError = throwable.getMessage();
+                    database.annotationDao().update(annotation);
+                }
                 errorCallback.accept(throwable);
             }
         });

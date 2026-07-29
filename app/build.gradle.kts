@@ -116,6 +116,7 @@ dependencies {
     implementation(libs.camerax.video)
     implementation(libs.camerax.view)
     implementation(libs.cardview)
+    implementation(libs.onnxruntime.android)
     implementation("com.alphacephei:vosk-android:0.3.47")
     testImplementation(libs.junit)
     androidTestImplementation(libs.room.testing)

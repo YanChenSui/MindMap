@@ -168,6 +168,16 @@ public class MoodMapViewModel extends AndroidViewModel {
                 throwable -> message.postValue("保存 ROS 模型预测失败"));
     }
 
+    public void mosaicAnnotationVideo(long annotationId) {
+        message.setValue("视频打码已开始");
+        repository.mosaicAnnotationVideo(annotationId,
+                progress -> {
+                    // The annotation card keeps showing PROCESSING; avoid flashing snackbars on every frame.
+                },
+                annotation -> message.postValue("视频打码已完成"),
+                throwable -> message.postValue("视频打码失败：" + (throwable.getMessage() == null ? "请稍后重试" : throwable.getMessage())));
+    }
+
     public void deleteTrip(long tripId) {
         Long activeId = activeTripId.getValue();
         if (activeId != null && activeId == tripId) {

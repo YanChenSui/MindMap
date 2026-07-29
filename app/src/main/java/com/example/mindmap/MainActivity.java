@@ -19,8 +19,9 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.ViewModelProvider;
 
-import com.example.mindmap.auth.LoginActivity;
-import com.example.mindmap.auth.LoginSession;
+import com.example.mindmap.profile.ProfileSetupActivity;
+import com.example.mindmap.profile.UserProfile;
+import com.example.mindmap.profile.UserProfileSession;
 import com.example.mindmap.service.LocationTrackingService;
 import com.example.mindmap.ui.activetrip.ActiveTripFragment;
 import com.example.mindmap.ui.home.HomeFragment;
@@ -43,8 +44,8 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.Navi
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (!LoginSession.isLoggedIn(this)) {
-            openLoginScreen();
+        if (!UserProfileSession.hasProfile(this)) {
+            openProfileSetupScreen(false);
             return;
         }
         EdgeToEdge.enable(this);
@@ -62,36 +63,68 @@ public class MainActivity extends AppCompatActivity implements HomeFragment.Navi
         requestCorePermissionsIfNeeded();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (UserProfileSession.hasProfile(this)) {
+            updateAppBarProfileSubtitle();
+        }
+    }
+
     private void configureAppBar() {
         MaterialToolbar toolbar = findViewById(R.id.main_toolbar);
-        toolbar.setSubtitle(getString(R.string.logged_in_as, LoginSession.username(this)));
+        updateAppBarProfileSubtitle();
         toolbar.setOnMenuItemClickListener(item -> {
-            if (item.getItemId() == R.id.action_logout) {
-                showLogoutConfirmation();
+            if (item.getItemId() == R.id.action_edit_profile) {
+                openProfileSetupScreen(true);
+                return true;
+            }
+            if (item.getItemId() == R.id.action_logout_profile) {
+                showLogoutProfileConfirmation();
                 return true;
             }
             return false;
         });
     }
 
-    private void showLogoutConfirmation() {
+    private void updateAppBarProfileSubtitle() {
+        MaterialToolbar toolbar = findViewById(R.id.main_toolbar);
+        if (toolbar == null) {
+            return;
+        }
+        UserProfile profile = UserProfileSession.currentProfile(this);
+        toolbar.setSubtitle(getString(
+                R.string.profile_summary,
+                profile.accountName,
+                profile.gender,
+                profile.ageGroup,
+                profile.educationLevel
+        ));
+    }
+
+    private void showLogoutProfileConfirmation() {
         new AlertDialog.Builder(this)
-                .setTitle(R.string.logout_title)
-                .setMessage(R.string.logout_message)
-                .setPositiveButton(R.string.logout_confirm, (dialog, which) -> {
+                .setTitle(R.string.profile_logout_title)
+                .setMessage(R.string.profile_logout_message)
+                .setPositiveButton(R.string.profile_logout_confirm, (dialog, which) -> {
                     stopTrackingService();
-                    LoginSession.logout(this);
-                    openLoginScreen();
+                    UserProfileSession.logout(this);
+                    openProfileSetupScreen(false);
                 })
-                .setNegativeButton(R.string.logout_cancel, null)
+                .setNegativeButton(R.string.profile_logout_cancel, null)
                 .show();
     }
 
-    private void openLoginScreen() {
-        Intent intent = new Intent(this, LoginActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+    private void openProfileSetupScreen(boolean editMode) {
+        Intent intent = new Intent(this, ProfileSetupActivity.class);
+        intent.putExtra(ProfileSetupActivity.EXTRA_EDIT_MODE, editMode);
+        if (!editMode) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        }
         startActivity(intent);
-        finish();
+        if (!editMode) {
+            finish();
+        }
     }
 
     public MoodMapViewModel getSharedViewModel() {

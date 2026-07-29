@@ -16,6 +16,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -260,6 +261,61 @@ public class ActiveTripFragment extends Fragment {
         } else if (currentPoints.isEmpty()) {
             stateContainer.addView(UiFactory.stateCard(requireContext(), "等待定位", "正在获取第一个有效 GPS 点"));
         }
+        addVideoMosaicState();
+    }
+
+    private void addVideoMosaicState() {
+        if (pendingVideoUri != null && !pendingVideoUri.isEmpty()) {
+            CardView card = UiFactory.stateCard(requireContext(), "视频待保存", "请先在弹出的标注问卷中点击保存；保存后这里会显示打码入口。");
+            card.setOnClickListener(v -> showAnnotationDialog(pendingVideoUri, lastAudioPath,
+                    pendingVideoThumbnailUri, Math.max(pendingVideoDurationMillis, lastAudioDurationMillis)));
+            stateContainer.addView(card);
+            return;
+        }
+        AnnotationEntity target = latestVideoAnnotation();
+        if (target == null) {
+            return;
+        }
+        CardView card = UiFactory.card(requireContext());
+        LinearLayout body = new LinearLayout(requireContext());
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.addView(UiFactory.cardTitle(requireContext(), "视频人脸打码"));
+        body.addView(UiFactory.mutedText(requireContext(), "状态：" + safeMosaicStatus(target.videoMosaicStatus)));
+        body.addView(UiFactory.mutedText(requireContext(), "视频：" + displayMediaUri(target.videoUri)));
+        if (AppConstants.MOSAIC_STATUS_PROCESSING.equals(target.videoMosaicStatus)) {
+            body.addView(createMosaicProgressBar());
+            body.addView(UiFactory.mutedText(requireContext(), "正在处理视频，请保持应用打开"));
+        }
+        MaterialButton button = UiFactory.secondaryButton(requireContext(),
+                AppConstants.MOSAIC_STATUS_PROCESSING.equals(target.videoMosaicStatus) ? "打码处理中" : "高斯模糊打码");
+        button.setEnabled(!AppConstants.MOSAIC_STATUS_PROCESSING.equals(target.videoMosaicStatus));
+        button.setOnClickListener(v -> confirmMosaicVideo(target));
+        body.addView(button);
+        card.addView(body);
+        stateContainer.addView(card);
+    }
+
+    @Nullable
+    private AnnotationEntity latestVideoAnnotation() {
+        for (int i = currentAnnotations.size() - 1; i >= 0; i--) {
+            AnnotationEntity annotation = currentAnnotations.get(i);
+            if (annotation.videoUri != null && !annotation.videoUri.isEmpty()) {
+                return annotation;
+            }
+        }
+        return null;
+    }
+
+    private ProgressBar createMosaicProgressBar() {
+        ProgressBar progressBar = new ProgressBar(requireContext(), null, android.R.attr.progressBarStyleHorizontal);
+        progressBar.setIndeterminate(true);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, UiFactory.dp(requireContext(), 8), 0, UiFactory.dp(requireContext(), 4));
+        progressBar.setLayoutParams(params);
+        return progressBar;
     }
 
     private void renderTrack(List<TrackPointEntity> points) {
@@ -298,6 +354,7 @@ public class ActiveTripFragment extends Fragment {
         currentAnnotations = annotations == null ? new ArrayList<>() : annotations;
         countText.setText("手动标记：" + currentAnnotations.size() + "处");
         redrawMap();
+        updateEnvironmentState();
     }
 
     private void renderMarkersOnly(@Nullable List<AnnotationEntity> annotations) {
@@ -469,6 +526,19 @@ public class ActiveTripFragment extends Fragment {
             return Uri.parse(uri).getPath();
         }
         return uri;
+    }
+
+    private String safeMosaicStatus(@Nullable String status) {
+        return status == null || status.isEmpty() ? AppConstants.MOSAIC_STATUS_NONE : status;
+    }
+
+    private void confirmMosaicVideo(AnnotationEntity annotation) {
+        new AlertDialog.Builder(requireContext())
+                .setTitle("视频人脸打码")
+                .setMessage("将使用 YOLOv9-T 检测 person，并对人体框顶部区域做高斯模糊。完成后会用打码视频替换当前视频路径，并保留原视频路径。")
+                .setPositiveButton("开始打码", (dialog, which) -> viewModel.mosaicAnnotationVideo(annotation.id))
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     private void confirmFinish() {

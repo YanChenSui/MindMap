@@ -1,21 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="login_logo_description">心境地图应用图标</string>
-    <string name="login_title">心境地图</string>
-    <string name="login_subtitle">记录每一次行走，也看见沿途的心情</string>
-    <string name="login_welcome">欢迎回来</string>
-    <string name="login_prompt">登录后继续查看你的行程与心境记录</string>
-    <string name="login_username_hint">账号</string>
-    <string name="login_password_hint">密码</string>
-    <string name="login_remember">保持登录状态</string>
-    <string name="login_action">登录</string>
-    <string name="login_username_error">请输入不超过 50 个字符的账号</string>
-    <string name="login_password_error">密码至少需要 %1$d 位</string>
-    <string name="login_local_notice">当前为本地演示登录，不会保存或上传密码</string>
-    <string name="logout_action">退出登录</string>
-    <string name="logout_title">退出登录？</string>
-    <string name="logout_message">退出后需要重新输入账号和密码才能进入。</string>
-    <string name="logout_confirm">退出</string>
-    <string name="logout_cancel">取消</string>
-    <string name="logged_in_as">当前账号：%1$s</string>
+    <string name="profile_logo_description">心境地图应用图标</string>
+    <string name="profile_app_title">心境地图</string>
+    <string name="profile_app_subtitle">记录每一次行走，也看见沿途的心情</string>
+    <string name="profile_setup_title">首次信息登记</string>
+    <string name="profile_setup_prompt">账户名称和基本信息只需填写一次，用于后续本地导出统计。</string>
+    <string name="profile_account_label">账户名称</string>
+    <string name="profile_account_error">请输入不超过 50 个字符的账户名称</string>
+    <string name="profile_gender_label">性别</string>
+    <string name="profile_age_group_label">年龄段</string>
+    <string name="profile_education_label">受教育程度</string>
+    <string name="profile_save_action">保存并进入</string>
+    <string name="profile_local_notice">当前信息暂时只保存在本机，导出数据时会随行程一起导出。</string>
+    <string name="profile_saved">基本信息已保存</string>
+    <string name="profile_edit_action">修改基本信息</string>
+    <string name="profile_logout_action">退出当前账户</string>
+    <string name="profile_logout_title">退出当前账户？</string>
+    <string name="profile_logout_message">退出后会清除本机当前账户资料，下次进入需要重新登记。</string>
+    <string name="profile_logout_confirm">退出</string>
+    <string name="profile_logout_cancel">取消</string>
+    <string name="profile_summary">%1$s：%2$s / %3$s / %4$s</string>
 </resources>

@@ -8,6 +8,10 @@ public final class AppConstants {
     public static final String TRIP_STATUS_FINISHED = "FINISHED";
     public static final String PREDICTION_STATUS_SUCCESS = "SUCCESS";
     public static final String PREDICTION_STATUS_FAILED = "FAILED";
+    public static final String MOSAIC_STATUS_NONE = "NONE";
+    public static final String MOSAIC_STATUS_PROCESSING = "PROCESSING";
+    public static final String MOSAIC_STATUS_SUCCESS = "SUCCESS";
+    public static final String MOSAIC_STATUS_FAILED = "FAILED";
     public static final String MOVING = "MOVING";
     public static final String STAYING = "STAYING";
     public static final String UNKNOWN = "UNKNOWN";

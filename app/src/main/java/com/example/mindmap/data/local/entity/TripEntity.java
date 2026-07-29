@@ -20,6 +20,10 @@ public class TripEntity {
     public int annotationCount;
     public String status;
     public long createdAt;
+    public String accountName;
+    public String gender;
+    public String ageGroup;
+    public String educationLevel;
 
     public TripEntity(String name, String destination, String recordMode, long startTime, String status, long createdAt) {
         this.name = name;

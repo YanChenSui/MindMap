@@ -1,6 +1,7 @@
 package com.example.mindmap.data.local;
 
 import android.content.Context;
+import android.database.Cursor;
 
 import androidx.room.Database;
 import androidx.room.migration.Migration;
@@ -16,11 +17,12 @@ import com.example.mindmap.data.local.entity.AnnotationEntity;
 import com.example.mindmap.data.local.entity.RosPredictionEntity;
 import com.example.mindmap.data.local.entity.TrackPointEntity;
 import com.example.mindmap.data.local.entity.TripEntity;
+import com.example.mindmap.util.AppConstants;
 
 /**
  * Room 数据库入口。所有写入由 Repository 的后台线程执行，禁止主线程数据库访问。
  */
-@Database(entities = {TripEntity.class, TrackPointEntity.class, AnnotationEntity.class, RosPredictionEntity.class}, version = 3, exportSchema = true)
+@Database(entities = {TripEntity.class, TrackPointEntity.class, AnnotationEntity.class, RosPredictionEntity.class}, version = 6, exportSchema = true)
 public abstract class AppDatabase extends RoomDatabase {
     private static volatile AppDatabase instance;
     private static final Migration MIGRATION_1_2 = new Migration(1, 2) {
@@ -43,6 +45,46 @@ public abstract class AppDatabase extends RoomDatabase {
             database.execSQL("CREATE INDEX IF NOT EXISTS `index_ros_predictions_annotationId` ON `ros_predictions` (`annotationId`)");
         }
     };
+    private static final Migration MIGRATION_3_4 = new Migration(3, 4) {
+        @Override
+        public void migrate(SupportSQLiteDatabase database) {
+            addTextColumnIfMissing(database, "trips", "gender");
+            addTextColumnIfMissing(database, "trips", "ageGroup");
+            addTextColumnIfMissing(database, "trips", "educationLevel");
+        }
+    };
+    private static final Migration MIGRATION_4_5 = new Migration(4, 5) {
+        @Override
+        public void migrate(SupportSQLiteDatabase database) {
+            addTextColumnIfMissing(database, "trips", "accountName");
+        }
+    };
+    private static final Migration MIGRATION_5_6 = new Migration(5, 6) {
+        @Override
+        public void migrate(SupportSQLiteDatabase database) {
+            addTextColumnIfMissing(database, "annotations", "originalVideoUri");
+            addTextColumnIfMissing(database, "annotations", "blurredVideoUri");
+            addTextColumnIfMissing(database, "annotations", "videoMosaicStatus", "'" + AppConstants.MOSAIC_STATUS_NONE + "'");
+            addTextColumnIfMissing(database, "annotations", "videoMosaicError");
+        }
+    };
+
+    private static void addTextColumnIfMissing(SupportSQLiteDatabase database, String tableName, String columnName) {
+        addTextColumnIfMissing(database, tableName, columnName, null);
+    }
+
+    private static void addTextColumnIfMissing(SupportSQLiteDatabase database, String tableName, String columnName, String defaultValue) {
+        try (Cursor cursor = database.query("PRAGMA table_info(`" + tableName + "`)")) {
+            int nameIndex = cursor.getColumnIndex("name");
+            while (cursor.moveToNext()) {
+                if (nameIndex >= 0 && columnName.equals(cursor.getString(nameIndex))) {
+                    return;
+                }
+            }
+        }
+        String defaultClause = defaultValue == null ? "" : " DEFAULT " + defaultValue;
+        database.execSQL("ALTER TABLE `" + tableName + "` ADD COLUMN `" + columnName + "` TEXT" + defaultClause);
+    }
 
     public abstract TripDao tripDao();
     public abstract TrackPointDao trackPointDao();
@@ -54,7 +96,7 @@ public abstract class AppDatabase extends RoomDatabase {
             synchronized (AppDatabase.class) {
                 if (instance == null) {
                     instance = Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "mood_map.db")
-                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                             .build();
                 }
             }

@@ -13,6 +13,7 @@ room = "2.8.1"
 amap = "10.1.200_loc6.4.9_sea9.7.4"
 camerax = "1.5.1"
 cardview = "1.0.0"
+onnxruntime = "1.20.0"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -35,6 +36,7 @@ camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", vers
 camerax-video = { group = "androidx.camera", name = "camera-video", version.ref = "camerax" }
 camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 cardview = { group = "androidx.cardview", name = "cardview", version.ref = "cardview" }
+onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -24,6 +24,9 @@ public interface AnnotationDao {
     @Query("SELECT * FROM annotations WHERE tripId = :tripId ORDER BY timestamp ASC")
     List<AnnotationEntity> getByTripSync(long tripId);
 
+    @Query("SELECT * FROM annotations WHERE id = :annotationId")
+    AnnotationEntity getByIdSync(long annotationId);
+
     @Query("SELECT COUNT(*) FROM annotations WHERE tripId = :tripId")
     int countByTripSync(long tripId);
 }

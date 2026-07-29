@@ -28,6 +28,11 @@ public class AnnotationEntity {
     public long timestamp;
     public String videoUri;
     public String videoThumbnailUri;
+    public String originalVideoUri;
+    public String blurredVideoUri;
+    @ColumnInfo(defaultValue = "'NONE'")
+    public String videoMosaicStatus;
+    public String videoMosaicError;
     public String audioUri;
     public String speechText;
     public String textNote;

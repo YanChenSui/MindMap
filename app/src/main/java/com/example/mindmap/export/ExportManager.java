@@ -54,9 +54,13 @@ public class ExportManager {
     public File exportCsv(File dir, TripEntity trip, List<AnnotationEntity> annotations) throws IOException {
         File file = new File(dir, safeBaseName(trip) + ".csv");
         StringBuilder builder = new StringBuilder();
-        builder.append("tripId,annotationId,timestamp,latitude,longitude,visualPreferenceScore,thoughtClarityScore,worryForgetScore,restoredRelaxedScore,rosCalmScore,interestScore,focusedAlertScore,rosAverageScore,pleasureScore,calmScore,relaxationScore,focusScore,averageScore,textNote,speechText,videoPath,videoThumbnailPath,audioPath,cameraPitch,cameraRoll,cameraYaw,durationMillis,landscapeLabel\n");
+        builder.append("tripId,accountName,gender,ageGroup,educationLevel,annotationId,timestamp,latitude,longitude,visualPreferenceScore,thoughtClarityScore,worryForgetScore,restoredRelaxedScore,rosCalmScore,interestScore,focusedAlertScore,rosAverageScore,pleasureScore,calmScore,relaxationScore,focusScore,averageScore,textNote,speechText,videoPath,originalVideoPath,blurredVideoPath,videoMosaicStatus,videoMosaicError,videoThumbnailPath,audioPath,cameraPitch,cameraRoll,cameraYaw,durationMillis,landscapeLabel\n");
         for (AnnotationEntity a : annotations) {
             builder.append(a.tripId).append(',')
+                    .append(CsvUtils.escape(trip.accountName)).append(',')
+                    .append(CsvUtils.escape(trip.gender)).append(',')
+                    .append(CsvUtils.escape(trip.ageGroup)).append(',')
+                    .append(CsvUtils.escape(trip.educationLevel)).append(',')
                     .append(a.id).append(',')
                     .append(a.timestamp).append(',')
                     .append(a.latitude).append(',')
@@ -77,6 +81,10 @@ public class ExportManager {
                     .append(CsvUtils.escape(a.textNote)).append(',')
                     .append(CsvUtils.escape(a.speechText)).append(',')
                     .append(CsvUtils.escape(a.videoUri)).append(',')
+                    .append(CsvUtils.escape(a.originalVideoUri)).append(',')
+                    .append(CsvUtils.escape(a.blurredVideoUri)).append(',')
+                    .append(CsvUtils.escape(a.videoMosaicStatus)).append(',')
+                    .append(CsvUtils.escape(a.videoMosaicError)).append(',')
                     .append(CsvUtils.escape(a.videoThumbnailUri)).append(',')
                     .append(CsvUtils.escape(a.audioUri)).append(',')
                     .append(a.cameraPitch).append(',')
@@ -103,6 +111,8 @@ public class ExportManager {
                 .append("<style>body{font-family:Arial,'Microsoft YaHei',sans-serif;margin:32px;color:#1b2b1f}table{border-collapse:collapse;width:100%;margin-top:16px}td,th{border:1px solid #cfd8dc;padding:8px;text-align:left}.ok{color:#2e7d32}.card{border:1px solid #d8e6da;border-radius:8px;padding:16px;margin:12px 0}</style>")
                 .append("</head><body><h1>心境地图分析报告</h1>")
                 .append("<div class=\"card\"><h2>").append(html(trip.name)).append("</h2>")
+                .append("<p>账户：").append(html(trip.accountName)).append("</p>")
+                .append("<p>基本信息：").append(html(trip.gender)).append(" / ").append(html(trip.ageGroup)).append(" / ").append(html(trip.educationLevel)).append("</p>")
                 .append("<p>日期：").append(TimeFormatUtils.readableDate(trip.startTime)).append("</p>")
                 .append("<p>时长：").append(TimeFormatUtils.duration(trip.durationMillis)).append("，距离：").append(String.format(Locale.CHINA, "%.1f 米", trip.distanceMeters)).append("，手动标记：").append(trip.annotationCount).append("处</p></div>")
                 .append("<h2>ROS恢复性感知统计</h2><p>有效样本数：").append(stats.count).append("</p><ul>");
@@ -138,7 +148,10 @@ public class ExportManager {
                     .append(a.interestScore).append('/')
                     .append(a.focusedAlertScore).append("</td><td>")
                     .append(html(a.textNote)).append("</td><td>").append(html(a.speechText)).append("</td><td>")
-                    .append(html(a.videoUri)).append("<br>缩略图：").append(html(a.videoThumbnailUri)).append("<br>").append(html(a.audioUri)).append("</td><td>")
+                    .append(html(a.videoUri)).append("<br>原视频：").append(html(a.originalVideoUri))
+                    .append("<br>打码视频：").append(html(a.blurredVideoUri))
+                    .append("<br>打码状态：").append(html(a.videoMosaicStatus))
+                    .append("<br>缩略图：").append(html(a.videoThumbnailUri)).append("<br>").append(html(a.audioUri)).append("</td><td>")
                     .append("Pitch ").append(a.cameraPitch).append("° / Roll ").append(a.cameraRoll).append("° / Yaw ").append(a.cameraYaw)
                     .append("°<br>媒体时长：").append(TimeFormatUtils.duration(a.durationMillis)).append("</td></tr>");
         }
@@ -168,7 +181,13 @@ public class ExportManager {
                 .append("    \"distanceMeters\": ").append(trip.distanceMeters).append(",\n")
                 .append("    \"annotationCount\": ").append(trip.annotationCount).append(",\n")
                 .append("    \"status\": \"").append(json(trip.status)).append("\",\n")
-                .append("    \"createdAt\": ").append(trip.createdAt).append("\n")
+                .append("    \"createdAt\": ").append(trip.createdAt).append(",\n")
+                .append("    \"userProfileSnapshot\": {\n")
+                .append("      \"accountName\": \"").append(json(trip.accountName)).append("\",\n")
+                .append("      \"gender\": \"").append(json(trip.gender)).append("\",\n")
+                .append("      \"ageGroup\": \"").append(json(trip.ageGroup)).append("\",\n")
+                .append("      \"educationLevel\": \"").append(json(trip.educationLevel)).append("\"\n")
+                .append("    }\n")
                 .append("  }");
     }
 
@@ -201,6 +220,10 @@ public class ExportManager {
                 .append("      \"longitude\": ").append(a.longitude).append(",\n")
                 .append("      \"timestamp\": ").append(a.timestamp).append(",\n")
                 .append("      \"videoUri\": \"").append(json(a.videoUri)).append("\",\n")
+                .append("      \"originalVideoUri\": \"").append(json(a.originalVideoUri)).append("\",\n")
+                .append("      \"blurredVideoUri\": \"").append(json(a.blurredVideoUri)).append("\",\n")
+                .append("      \"videoMosaicStatus\": \"").append(json(a.videoMosaicStatus)).append("\",\n")
+                .append("      \"videoMosaicError\": \"").append(json(a.videoMosaicError)).append("\",\n")
                 .append("      \"videoThumbnailUri\": \"").append(json(a.videoThumbnailUri)).append("\",\n")
                 .append("      \"audioUri\": \"").append(json(a.audioUri)).append("\",\n")
                 .append("      \"speechText\": \"").append(json(a.speechText)).append("\",\n")
