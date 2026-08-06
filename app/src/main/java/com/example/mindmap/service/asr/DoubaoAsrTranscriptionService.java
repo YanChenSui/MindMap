@@ -54,15 +54,15 @@ public class DoubaoAsrTranscriptionService implements TranscriptionService {
                 if (audioFile == null || !audioFile.exists() || audioFile.length() <= 0L) {
                     throw new IOException("Audio or video file does not exist.");
                 }
-                String text = requestTranscription(audioFile);
-                mainHandler.post(() -> callback.onSuccess(text));
+                TranscriptionResult result = requestTranscription(audioFile);
+                mainHandler.post(() -> callback.onSuccess(result));
             } catch (Throwable throwable) {
                 mainHandler.post(() -> callback.onError(throwable));
             }
         });
     }
 
-    private String requestTranscription(File mediaFile) throws Exception {
+    private TranscriptionResult requestTranscription(File mediaFile) throws Exception {
         DecodedAudioFile preparedAudio = AudioFileNormalizer.prepareForDoubao(mediaFile);
         try {
             HttpURLConnection connection = (HttpURLConnection) new URL(BuildConfig.DOUBAO_ASR_API_URL).openConnection();
@@ -104,7 +104,7 @@ public class DoubaoAsrTranscriptionService implements TranscriptionService {
                         + ", logid=" + nullToEmpty(logId)
                         + ", body=" + response);
             }
-            return parseText(response);
+            return parseResult(response);
         } finally {
             if (preparedAudio.temporary && preparedAudio.file.exists()) {
                 preparedAudio.file.delete();
@@ -160,31 +160,61 @@ public class DoubaoAsrTranscriptionService implements TranscriptionService {
         return builder.toString();
     }
 
-    private String parseText(String response) throws Exception {
+    static TranscriptionResult parseResult(String response) throws Exception {
         JSONObject json = new JSONObject(response);
         JSONObject result = json.optJSONObject("result");
         if (result == null) {
-            return "";
+            return TranscriptionResult.textOnly("");
         }
 
         String text = result.optString("text", "").trim();
-        if (!text.isEmpty()) {
-            return text;
-        }
-
         JSONArray utterances = result.optJSONArray("utterances");
-        if (utterances == null) {
-            return "";
-        }
         StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < utterances.length(); i++) {
-            JSONObject item = utterances.optJSONObject(i);
-            String itemText = item == null ? "" : item.optString("text", "").trim();
-            if (!itemText.isEmpty()) {
-                builder.append(itemText);
+        long startOffsetMillis = Long.MAX_VALUE;
+        long endOffsetMillis = -1L;
+        if (utterances != null) {
+            for (int i = 0; i < utterances.length(); i++) {
+                JSONObject item = utterances.optJSONObject(i);
+                String itemText = item == null ? "" : item.optString("text", "").trim();
+                if (!itemText.isEmpty()) {
+                    builder.append(itemText);
+                }
+                if (item != null) {
+                    long start = optMillis(item, "start_time", "startTime");
+                    long end = optMillis(item, "end_time", "endTime");
+                    if (start < 0L) {
+                        start = optSecondsAsMillis(item, "start");
+                    }
+                    if (end < 0L) {
+                        end = optSecondsAsMillis(item, "end");
+                    }
+                    if (start >= 0L) {
+                        startOffsetMillis = Math.min(startOffsetMillis, start);
+                    }
+                    if (end >= 0L) {
+                        endOffsetMillis = Math.max(endOffsetMillis, end);
+                    }
+                }
             }
         }
-        return builder.toString();
+        String finalText = text.isEmpty() ? builder.toString() : text;
+        if (startOffsetMillis == Long.MAX_VALUE || endOffsetMillis < startOffsetMillis) {
+            return TranscriptionResult.textOnly(finalText);
+        }
+        return new TranscriptionResult(finalText, startOffsetMillis, endOffsetMillis);
+    }
+
+    private static long optMillis(JSONObject item, String... keys) {
+        for (String key : keys) {
+            if (item.has(key)) {
+                return Math.max(-1L, Math.round(item.optDouble(key, -1d)));
+            }
+        }
+        return -1L;
+    }
+
+    private static long optSecondsAsMillis(JSONObject item, String key) {
+        return item.has(key) ? Math.max(-1L, Math.round(item.optDouble(key, -1d) * 1000d)) : -1L;
     }
 
     private boolean hasNewConsoleCredential() {

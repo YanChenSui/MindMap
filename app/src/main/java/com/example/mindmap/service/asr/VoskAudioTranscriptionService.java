@@ -7,6 +7,7 @@ import android.media.MediaFormat;
 import android.os.Handler;
 import android.os.Looper;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.vosk.Model;
 import org.vosk.Recognizer;
@@ -61,8 +62,8 @@ public class VoskAudioTranscriptionService implements TranscriptionService {
                     throw new IOException("音频文件不存在或为空");
                 }
                 Model model = getModel();
-                String text = transcribeDecodedPcm(audioFile, model);
-                mainHandler.post(() -> callback.onSuccess(text));
+                TranscriptionResult result = transcribeDecodedPcm(audioFile, model);
+                mainHandler.post(() -> callback.onSuccess(result));
             } catch (Throwable throwable) {
                 mainHandler.post(() -> callback.onError(throwable));
             }
@@ -83,7 +84,7 @@ public class VoskAudioTranscriptionService implements TranscriptionService {
         }
     }
 
-    private String transcribeDecodedPcm(File audioFile, Model model) throws IOException {
+    private TranscriptionResult transcribeDecodedPcm(File audioFile, Model model) throws IOException {
         MediaExtractor extractor = new MediaExtractor();
         MediaCodec decoder = null;
         Recognizer recognizer = null;
@@ -108,6 +109,8 @@ public class VoskAudioTranscriptionService implements TranscriptionService {
             decoder.configure(format, null, null, 0);
             decoder.start();
             recognizer = new Recognizer(model, sampleRate);
+            recognizer.setWords(true);
+            TranscriptAccumulator accumulator = new TranscriptAccumulator();
 
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
             boolean inputDone = false;
@@ -137,7 +140,9 @@ public class VoskAudioTranscriptionService implements TranscriptionService {
                     if (outputBuffer != null && info.size > 0) {
                         outputBuffer.position(info.offset);
                         outputBuffer.limit(info.offset + info.size);
-                        feedPcmToRecognizer(outputBuffer.slice(), channelCount, recognizer);
+                        if (feedPcmToRecognizer(outputBuffer.slice(), channelCount, recognizer)) {
+                            accumulator.add(recognizer.getResult());
+                        }
                     }
                     outputDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
                     decoder.releaseOutputBuffer(outputIndex, false);
@@ -151,7 +156,8 @@ public class VoskAudioTranscriptionService implements TranscriptionService {
                     }
                 }
             }
-            return parseText(recognizer.getFinalResult());
+            accumulator.add(recognizer.getFinalResult());
+            return accumulator.build();
         } finally {
             if (recognizer != null) {
                 recognizer.close();
@@ -175,13 +181,12 @@ public class VoskAudioTranscriptionService implements TranscriptionService {
         return -1;
     }
 
-    private void feedPcmToRecognizer(ByteBuffer pcmBuffer, int channelCount, Recognizer recognizer) {
+    private boolean feedPcmToRecognizer(ByteBuffer pcmBuffer, int channelCount, Recognizer recognizer) {
         pcmBuffer.order(ByteOrder.LITTLE_ENDIAN);
         if (channelCount <= 1) {
             byte[] mono = new byte[pcmBuffer.remaining()];
             pcmBuffer.get(mono);
-            recognizer.acceptWaveForm(mono, mono.length);
-            return;
+            return recognizer.acceptWaveForm(mono, mono.length);
         }
 
         ShortBuffer samples = pcmBuffer.asShortBuffer();
@@ -194,14 +199,55 @@ public class VoskAudioTranscriptionService implements TranscriptionService {
             }
             mono.putShort((short) (mixed / channelCount));
         }
-        recognizer.acceptWaveForm(mono.array(), mono.position());
+        return recognizer.acceptWaveForm(mono.array(), mono.position());
     }
 
-    private String parseText(String resultJson) {
-        try {
-            return new JSONObject(resultJson).optString("text", "").trim();
-        } catch (Throwable throwable) {
-            return resultJson == null ? "" : resultJson.trim();
+    private static final class TranscriptAccumulator {
+        private final StringBuilder text = new StringBuilder();
+        private long startOffsetMillis = Long.MAX_VALUE;
+        private long endOffsetMillis = -1L;
+
+        void add(String resultJson) {
+            if (resultJson == null || resultJson.trim().isEmpty()) {
+                return;
+            }
+            try {
+                JSONObject result = new JSONObject(resultJson);
+                String segmentText = result.optString("text", "").trim();
+                if (!segmentText.isEmpty()) {
+                    if (text.length() > 0) {
+                        text.append(' ');
+                    }
+                    text.append(segmentText);
+                }
+                JSONArray words = result.optJSONArray("result");
+                if (words == null) {
+                    return;
+                }
+                for (int i = 0; i < words.length(); i++) {
+                    JSONObject word = words.optJSONObject(i);
+                    if (word == null) {
+                        continue;
+                    }
+                    long start = Math.round(word.optDouble("start", -1d) * 1000d);
+                    long end = Math.round(word.optDouble("end", -1d) * 1000d);
+                    if (start >= 0L) {
+                        startOffsetMillis = Math.min(startOffsetMillis, start);
+                    }
+                    if (end >= 0L) {
+                        endOffsetMillis = Math.max(endOffsetMillis, end);
+                    }
+                }
+            } catch (Throwable ignored) {
+                // Keep any successfully parsed segments; malformed partial results are non-fatal.
+            }
+        }
+
+        TranscriptionResult build() {
+            if (startOffsetMillis == Long.MAX_VALUE || endOffsetMillis < startOffsetMillis) {
+                return TranscriptionResult.textOnly(text.toString());
+            }
+            return new TranscriptionResult(text.toString(), startOffsetMillis, endOffsetMillis);
         }
     }
 }

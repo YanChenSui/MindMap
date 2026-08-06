@@ -20,6 +20,7 @@ import com.example.mindmap.service.ros.RosPredictionWorkflow;
 import com.example.mindmap.ui.UiFactory;
 import com.example.mindmap.ui.viewmodel.MoodMapViewModel;
 import com.example.mindmap.util.AppConstants;
+import com.example.mindmap.util.TimeFormatUtils;
 
 /**
  * 创建情绪标注。没有视频或录音时也可以独立保存文字和评分。
@@ -39,11 +40,15 @@ public class AnnotationDialogFragment extends DialogFragment {
     private static final String ARG_ROLL = "roll";
     private static final String ARG_YAW = "yaw";
     private static final String ARG_DURATION = "duration";
+    private static final String ARG_SPEECH_START_TIME = "speech_start_time";
+    private static final String ARG_SPEECH_END_TIME = "speech_end_time";
 
     public static AnnotationDialogFragment newInstance(long tripId, double latitude, double longitude,
                                                        @Nullable String videoUri, @Nullable String videoThumbnailUri,
                                                        @Nullable String audioUri, @Nullable String speechText,
-                                                       float pitch, float roll, float yaw, long durationMillis) {
+                                                       float pitch, float roll, float yaw, long durationMillis,
+                                                       @Nullable Long speechStartTimeMillis,
+                                                       @Nullable Long speechEndTimeMillis) {
         AnnotationDialogFragment fragment = new AnnotationDialogFragment();
         Bundle args = new Bundle();
         args.putLong(ARG_TRIP_ID, tripId);
@@ -57,6 +62,12 @@ public class AnnotationDialogFragment extends DialogFragment {
         args.putFloat(ARG_ROLL, roll);
         args.putFloat(ARG_YAW, yaw);
         args.putLong(ARG_DURATION, durationMillis);
+        if (speechStartTimeMillis != null) {
+            args.putLong(ARG_SPEECH_START_TIME, speechStartTimeMillis);
+        }
+        if (speechEndTimeMillis != null) {
+            args.putLong(ARG_SPEECH_END_TIME, speechEndTimeMillis);
+        }
         fragment.setArguments(args);
         return fragment;
     }
@@ -85,10 +96,18 @@ public class AnnotationDialogFragment extends DialogFragment {
         EditText speech = new EditText(requireContext());
         speech.setHint("语音转写或手动补充文字");
         speech.setText(args.getString(ARG_SPEECH, ""));
+        Long speechStartTime = args.containsKey(ARG_SPEECH_START_TIME)
+                ? args.getLong(ARG_SPEECH_START_TIME)
+                : null;
+        Long speechEndTime = args.containsKey(ARG_SPEECH_END_TIME)
+                ? args.getLong(ARG_SPEECH_END_TIME)
+                : null;
         root.addView(UiFactory.mutedText(requireContext(), "拍摄角度：Pitch "
                 + args.getFloat(ARG_PITCH) + "° / Roll "
                 + args.getFloat(ARG_ROLL) + "° / Yaw "
                 + args.getFloat(ARG_YAW) + "°"));
+        root.addView(UiFactory.mutedText(requireContext(), "检测到的说话时间："
+                + TimeFormatUtils.speechTimeRange(speechStartTime, speechEndTime)));
         root.addView(visualPreference.view);
         root.addView(thoughtClarity.view);
         root.addView(worryForget.view);
@@ -113,6 +132,8 @@ public class AnnotationDialogFragment extends DialogFragment {
                     annotation.audioUri = args.getString(ARG_AUDIO);
                     annotation.textNote = noteText;
                     annotation.speechText = speech.getText().toString();
+                    annotation.speechStartTimeMillis = speechStartTime;
+                    annotation.speechEndTimeMillis = speechEndTime;
                     annotation.cameraPitch = args.getFloat(ARG_PITCH);
                     annotation.cameraRoll = args.getFloat(ARG_ROLL);
                     annotation.cameraYaw = args.getFloat(ARG_YAW);

@@ -43,6 +43,7 @@ import com.example.mindmap.data.local.entity.TripEntity;
 import com.example.mindmap.service.MediaRecorderManager;
 import com.example.mindmap.service.asr.TranscriptionService;
 import com.example.mindmap.service.asr.TranscriptionServiceFactory;
+import com.example.mindmap.service.asr.TranscriptionResult;
 import com.example.mindmap.ui.UiFactory;
 import com.example.mindmap.ui.annotation.AnnotationDialogFragment;
 import com.example.mindmap.ui.video.VideoRecordActivity;
@@ -84,9 +85,12 @@ public class ActiveTripFragment extends Fragment {
     private String lastAudioPath;
     private String lastSpeechText;
     private long lastAudioDurationMillis;
+    private long audioRecordingStartTimeMillis;
     private String pendingVideoUri;
     private String pendingVideoThumbnailUri;
     private long pendingVideoDurationMillis;
+    private Long pendingSpeechStartTimeMillis;
+    private Long pendingSpeechEndTimeMillis;
     private MaterialButton audioButton;
     private ActivityResultLauncher<Intent> videoLauncher;
 
@@ -123,14 +127,17 @@ public class ActiveTripFragment extends Fragment {
                 String uri = result.getData().getStringExtra(VideoRecordActivity.EXTRA_VIDEO_URI);
                 String thumbnailUri = result.getData().getStringExtra(VideoRecordActivity.EXTRA_VIDEO_THUMBNAIL_URI);
                 long videoDuration = result.getData().getLongExtra(VideoRecordActivity.EXTRA_VIDEO_DURATION_MILLIS, 0L);
+                long videoRecordedAt = result.getData().getLongExtra(VideoRecordActivity.EXTRA_VIDEO_RECORDED_AT_MILLIS, 0L);
                 pendingVideoUri = uri;
                 pendingVideoThumbnailUri = thumbnailUri;
                 pendingVideoDurationMillis = videoDuration;
+                pendingSpeechStartTimeMillis = null;
+                pendingSpeechEndTimeMillis = null;
                 lastSpeechText = "";
                 File videoFile = fileFromUri(uri);
                 if (videoFile != null) {
                     Snackbar.make(requireView(), "视频已保存，正在转写视频声音：" + displayMediaUri(uri), Snackbar.LENGTH_LONG).show();
-                    startMediaFileTranscription(videoFile, "视频声音");
+                    startMediaFileTranscription(videoFile, "视频声音", videoRecordedAt);
                     return;
                 }
                 Snackbar.make(requireView(), "视频已保存：" + displayMediaUri(uri), Snackbar.LENGTH_LONG).show();
@@ -416,6 +423,9 @@ public class ActiveTripFragment extends Fragment {
                 File file = recorderManager.start(requireContext(), viewModel.getRepository().getMediaDir("audio"));
                 lastAudioPath = Uri.fromFile(file).toString();
                 lastAudioDurationMillis = 0L;
+                audioRecordingStartTimeMillis = System.currentTimeMillis();
+                pendingSpeechStartTimeMillis = null;
+                pendingSpeechEndTimeMillis = null;
                 recordingAudio = true;
                 audioButton.setText("停止");
                 timerHandler.postDelayed(audioTimeoutRunnable, AppConstants.MAX_AUDIO_DURATION_MILLIS);
@@ -443,7 +453,7 @@ public class ActiveTripFragment extends Fragment {
             if (launchSpeech) {
                 String message = reachedLimit ? "录音已到 60 秒并自动保存，正在本地转写" : "录音已保存，正在本地转写";
                 Snackbar.make(requireView(), message, Snackbar.LENGTH_LONG).show();
-                startMediaFileTranscription(result.file, "音频文件");
+                startMediaFileTranscription(result.file, "音频文件", audioRecordingStartTimeMillis);
             }
         } catch (Throwable throwable) {
             recordingAudio = false;
@@ -453,11 +463,13 @@ public class ActiveTripFragment extends Fragment {
         }
     }
 
-    private void startMediaFileTranscription(@Nullable File mediaFile, @NonNull String mediaLabel) {
+    private void startMediaFileTranscription(@Nullable File mediaFile, @NonNull String mediaLabel, long mediaStartTimeMillis) {
         transcriptionService.transcribe(mediaFile, new TranscriptionService.Callback() {
             @Override
-            public void onSuccess(String text) {
-                lastSpeechText = text == null ? "" : text;
+            public void onSuccess(TranscriptionResult result) {
+                lastSpeechText = result == null ? "" : result.text;
+                pendingSpeechStartTimeMillis = result == null ? null : result.worldStartTimeMillis(mediaStartTimeMillis);
+                pendingSpeechEndTimeMillis = result == null ? null : result.worldEndTimeMillis(mediaStartTimeMillis);
                 if (!isAdded() || getView() == null) {
                     return;
                 }
@@ -475,6 +487,8 @@ public class ActiveTripFragment extends Fragment {
             @Override
             public void onError(Throwable throwable) {
                 lastSpeechText = "";
+                pendingSpeechStartTimeMillis = null;
+                pendingSpeechEndTimeMillis = null;
                 if (!isAdded() || getView() == null) {
                     return;
                 }
@@ -502,9 +516,12 @@ public class ActiveTripFragment extends Fragment {
         lastAudioPath = null;
         lastSpeechText = null;
         lastAudioDurationMillis = 0L;
+        audioRecordingStartTimeMillis = 0L;
         pendingVideoUri = null;
         pendingVideoThumbnailUri = null;
         pendingVideoDurationMillis = 0L;
+        pendingSpeechStartTimeMillis = null;
+        pendingSpeechEndTimeMillis = null;
     }
 
     private void showAnnotationDialog(@Nullable String videoUri, @Nullable String audioUri, @Nullable String thumbnailUri, long mediaDurationMillis) {
@@ -514,7 +531,8 @@ public class ActiveTripFragment extends Fragment {
         float roll = latestPoint == null ? 0f : latestPoint.roll;
         float yaw = latestPoint == null ? 0f : latestPoint.yaw;
         AnnotationDialogFragment.newInstance(tripId, lat, lon, videoUri, thumbnailUri, audioUri,
-                        lastSpeechText, pitch, roll, yaw, mediaDurationMillis)
+                        lastSpeechText, pitch, roll, yaw, mediaDurationMillis,
+                        pendingSpeechStartTimeMillis, pendingSpeechEndTimeMillis)
                 .show(getParentFragmentManager(), "annotation");
     }
 

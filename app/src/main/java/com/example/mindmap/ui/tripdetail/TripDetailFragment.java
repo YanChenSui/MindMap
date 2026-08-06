@@ -427,6 +427,8 @@ public class TripDetailFragment extends Fragment {
         }
         body.addView(UiFactory.mutedText(requireContext(), "缩略图：" + displayMediaUri(annotation.videoThumbnailUri)));
         body.addView(UiFactory.mutedText(requireContext(), "媒体时长：" + TimeFormatUtils.duration(annotation.durationMillis)));
+        body.addView(UiFactory.mutedText(requireContext(), "说话起止时间："
+                + TimeFormatUtils.speechTimeRange(annotation.speechStartTimeMillis, annotation.speechEndTimeMillis)));
         body.addView(UiFactory.mutedText(requireContext(), "拍摄角度：Pitch " + annotation.cameraPitch
                 + "° / Roll " + annotation.cameraRoll + "° / Yaw " + annotation.cameraYaw + "°"));
         body.addView(UiFactory.mutedText(requireContext(), "文字：" + safe(annotation.textNote)));

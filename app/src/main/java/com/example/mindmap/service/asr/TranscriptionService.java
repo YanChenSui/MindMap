@@ -11,7 +11,7 @@ public interface TranscriptionService {
     void transcribe(File audioFile, Callback callback);
 
     interface Callback {
-        void onSuccess(String text);
+        void onSuccess(TranscriptionResult result);
 
         void onError(Throwable throwable);
     }
