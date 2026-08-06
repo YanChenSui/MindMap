@@ -54,7 +54,7 @@ public class ExportManager {
     public File exportCsv(File dir, TripEntity trip, List<AnnotationEntity> annotations) throws IOException {
         File file = new File(dir, safeBaseName(trip) + ".csv");
         StringBuilder builder = new StringBuilder();
-        builder.append("tripId,accountName,gender,ageGroup,educationLevel,annotationId,timestamp,latitude,longitude,visualPreferenceScore,thoughtClarityScore,worryForgetScore,restoredRelaxedScore,rosCalmScore,interestScore,focusedAlertScore,rosAverageScore,pleasureScore,calmScore,relaxationScore,focusScore,averageScore,textNote,speechText,videoPath,originalVideoPath,blurredVideoPath,videoMosaicStatus,videoMosaicError,videoThumbnailPath,audioPath,cameraPitch,cameraRoll,cameraYaw,durationMillis,landscapeLabel\n");
+        builder.append("tripId,accountName,gender,ageGroup,educationLevel,annotationId,timestamp,latitude,longitude,visualPreferenceScore,thoughtClarityScore,worryForgetScore,restoredRelaxedScore,rosCalmScore,interestScore,focusedAlertScore,rosAverageScore,pleasureScore,calmScore,relaxationScore,focusScore,averageScore,textNote,speechText,speechStartTimeMillis,speechEndTimeMillis,speechStartTimeUtc,speechEndTimeUtc,videoPath,originalVideoPath,blurredVideoPath,videoMosaicStatus,videoMosaicError,videoThumbnailPath,audioPath,cameraPitch,cameraRoll,cameraYaw,durationMillis,landscapeLabel\n");
         for (AnnotationEntity a : annotations) {
             builder.append(a.tripId).append(',')
                     .append(CsvUtils.escape(trip.accountName)).append(',')
@@ -80,6 +80,10 @@ public class ExportManager {
                     .append(a.averageScore).append(',')
                     .append(CsvUtils.escape(a.textNote)).append(',')
                     .append(CsvUtils.escape(a.speechText)).append(',')
+                    .append(a.speechStartTimeMillis == null ? "" : a.speechStartTimeMillis).append(',')
+                    .append(a.speechEndTimeMillis == null ? "" : a.speechEndTimeMillis).append(',')
+                    .append(CsvUtils.escape(a.speechStartTimeMillis == null ? "" : TimeFormatUtils.utcIso8601(a.speechStartTimeMillis))).append(',')
+                    .append(CsvUtils.escape(a.speechEndTimeMillis == null ? "" : TimeFormatUtils.utcIso8601(a.speechEndTimeMillis))).append(',')
                     .append(CsvUtils.escape(a.videoUri)).append(',')
                     .append(CsvUtils.escape(a.originalVideoUri)).append(',')
                     .append(CsvUtils.escape(a.blurredVideoUri)).append(',')
@@ -147,7 +151,9 @@ public class ExportManager {
                     .append(a.rosCalmScore).append('/')
                     .append(a.interestScore).append('/')
                     .append(a.focusedAlertScore).append("</td><td>")
-                    .append(html(a.textNote)).append("</td><td>").append(html(a.speechText)).append("</td><td>")
+                    .append(html(a.textNote)).append("</td><td>").append(html(a.speechText))
+                    .append("<br>说话时间：").append(html(TimeFormatUtils.speechTimeRange(a.speechStartTimeMillis, a.speechEndTimeMillis)))
+                    .append("</td><td>")
                     .append(html(a.videoUri)).append("<br>原视频：").append(html(a.originalVideoUri))
                     .append("<br>打码视频：").append(html(a.blurredVideoUri))
                     .append("<br>打码状态：").append(html(a.videoMosaicStatus))
@@ -227,6 +233,10 @@ public class ExportManager {
                 .append("      \"videoThumbnailUri\": \"").append(json(a.videoThumbnailUri)).append("\",\n")
                 .append("      \"audioUri\": \"").append(json(a.audioUri)).append("\",\n")
                 .append("      \"speechText\": \"").append(json(a.speechText)).append("\",\n")
+                .append("      \"speechStartTimeMillis\": ").append(nullableLongJson(a.speechStartTimeMillis)).append(",\n")
+                .append("      \"speechEndTimeMillis\": ").append(nullableLongJson(a.speechEndTimeMillis)).append(",\n")
+                .append("      \"speechStartTimeUtc\": ").append(nullableUtcJson(a.speechStartTimeMillis)).append(",\n")
+                .append("      \"speechEndTimeUtc\": ").append(nullableUtcJson(a.speechEndTimeMillis)).append(",\n")
                 .append("      \"textNote\": \"").append(json(a.textNote)).append("\",\n")
                 .append("      \"description\": ").append(nullableJson(a.textNote)).append(",\n")
                 .append("      \"transcription\": ").append(nullableJson(a.speechText)).append(",\n")
@@ -313,6 +323,14 @@ public class ExportManager {
 
     private static String nullableJson(String value) {
         return isBlank(value) ? "null" : "\"" + json(value.trim()) + "\"";
+    }
+
+    private static String nullableLongJson(Long value) {
+        return value == null ? "null" : String.valueOf(value);
+    }
+
+    private static String nullableUtcJson(Long value) {
+        return value == null ? "null" : "\"" + TimeFormatUtils.utcIso8601(value) + "\"";
     }
 
     private static String jsonArrayOrEmpty(String value) {

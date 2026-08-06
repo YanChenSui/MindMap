@@ -3,6 +3,7 @@ package com.example.mindmap.util;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.TimeZone;
 
 /** 统一处理页面、导出文件和地图标注使用的时间、距离、坐标展示格式。 */
 public final class TimeFormatUtils {
@@ -14,6 +15,25 @@ public final class TimeFormatUtils {
 
     public static String readableDate(long timeMillis) {
         return new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA).format(new Date(timeMillis));
+    }
+
+    /** Displays an absolute wall-clock time with seconds, milliseconds and the current time-zone name. */
+    public static String worldDateTime(long timeMillis) {
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS z", Locale.CHINA).format(new Date(timeMillis));
+    }
+
+    /** Stable UTC representation for JSON/CSV exchange across devices and servers. */
+    public static String utcIso8601(long timeMillis) {
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT);
+        formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return formatter.format(new Date(timeMillis));
+    }
+
+    public static String speechTimeRange(Long startTimeMillis, Long endTimeMillis) {
+        if (startTimeMillis == null || endTimeMillis == null) {
+            return "未检测到";
+        }
+        return worldDateTime(startTimeMillis) + " ～ " + worldDateTime(endTimeMillis);
     }
 
     public static String dateOnly(long timeMillis) {

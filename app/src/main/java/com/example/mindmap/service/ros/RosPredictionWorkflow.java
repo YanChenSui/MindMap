@@ -11,6 +11,7 @@ import com.example.mindmap.data.local.entity.RosPredictionEntity;
 import com.example.mindmap.data.repository.MoodMapRepository;
 import com.example.mindmap.service.asr.TranscriptionService;
 import com.example.mindmap.service.asr.TranscriptionServiceFactory;
+import com.example.mindmap.service.asr.TranscriptionResult;
 
 import java.io.File;
 
@@ -46,8 +47,8 @@ public class RosPredictionWorkflow {
         }
         transcriptionService.transcribe(mediaFile, new TranscriptionService.Callback() {
             @Override
-            public void onSuccess(String text) {
-                predictAndSave(annotation.id, safe(text));
+            public void onSuccess(TranscriptionResult result) {
+                predictAndSave(annotation.id, result == null ? "" : safe(result.text));
             }
 
             @Override

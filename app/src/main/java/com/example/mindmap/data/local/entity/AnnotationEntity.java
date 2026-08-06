@@ -35,6 +35,10 @@ public class AnnotationEntity {
     public String videoMosaicError;
     public String audioUri;
     public String speechText;
+    /** Unix epoch milliseconds for the first detected spoken word in the recorded media. */
+    public Long speechStartTimeMillis;
+    /** Unix epoch milliseconds for the end of the last detected spoken word in the recorded media. */
+    public Long speechEndTimeMillis;
     public String textNote;
     public int pleasureScore;
     public int calmScore;

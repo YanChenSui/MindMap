@@ -56,6 +56,7 @@ public class VideoRecordActivity extends AppCompatActivity {
     public static final String EXTRA_VIDEO_URI = "video_uri";
     public static final String EXTRA_VIDEO_THUMBNAIL_URI = "video_thumbnail_uri";
     public static final String EXTRA_VIDEO_DURATION_MILLIS = "video_duration_millis";
+    public static final String EXTRA_VIDEO_RECORDED_AT_MILLIS = "video_recorded_at_millis";
     private static final String TAG = "VideoRecordActivity";
 
     private PreviewView previewView;
@@ -201,6 +202,7 @@ public class VideoRecordActivity extends AppCompatActivity {
             data.putExtra(EXTRA_VIDEO_THUMBNAIL_URI, Uri.fromFile(thumbnail).toString());
         }
         data.putExtra(EXTRA_VIDEO_DURATION_MILLIS, Math.max(0L, System.currentTimeMillis() - recordingStartTime));
+        data.putExtra(EXTRA_VIDEO_RECORDED_AT_MILLIS, recordingStartTime);
         setResult(RESULT_OK, data);
         String path = currentFile.getAbsolutePath();
         statusText.setText("视频已保存\n" + path);
